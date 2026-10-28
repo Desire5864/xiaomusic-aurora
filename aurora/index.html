@@ -111,6 +111,7 @@
 
       <div class="card">
         <div class="grid head">
+          <div class="c-cov"></div>
           <div class="c-num">#</div>
           <button class="c-ttl th" data-sort="title">标题<i class="caret"></i></button>
           <button class="c-art th" data-sort="artist">歌手<i class="caret"></i></button>
@@ -123,24 +124,6 @@
         <div class="loadbar" id="loadbar" hidden><i></i><span></span></div>
       </div>
     </main>
-
-    <!-- ============ 右栏：队列 / 歌词 ============ -->
-    <aside class="player" id="player">
-      <div class="p-q">
-        <div class="qh">
-          <div class="seg" id="paneSeg">
-            <button type="button" class="on" data-pane="queue">队列</button>
-            <button type="button" data-pane="lyric">歌词</button>
-          </div>
-          <span id="qCount"></span>
-          <button class="p-open" id="panelStage" title="打开播放页">
-            <svg class="ic up"><use href="#i-chev"/></svg>
-          </button>
-        </div>
-        <div id="queue" class="queue"></div>
-        <div id="lyric" class="lyric" hidden></div>
-      </div>
-    </aside>
   </div>
 
   <!-- 底部播放条 -->

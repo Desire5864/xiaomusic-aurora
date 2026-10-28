@@ -40,7 +40,7 @@
 ```yaml
 services:
   xiaomusic:
-    image: zhangsan51455/xiaomusic-aurora:1.1
+    image: zhangsan51455/xiaomusic-aurora:1.2
     container_name: xiaomusic
     restart: unless-stopped
     ports:
@@ -61,7 +61,7 @@ services:
 ```bash
 git clone https://github.com/Desire5864/xiaomusic-aurora.git
 cd xiaomusic-aurora
-docker build -t xiaomusic-aurora:1.1 .
+docker build -t xiaomusic-aurora:1.2 .
 ```
 
 想跟官方新版走，改 `Dockerfile` 第一行的 `FROM`，或者直接 `docker build --build-arg` 前先 `docker pull hanxi/xiaomusic:latest`。

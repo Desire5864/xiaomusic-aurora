@@ -336,7 +336,6 @@
     S.loading = false;
     if (token === S.token) {
       if (curSong) setCur(S.curMusic);
-      renderQueue();
       speedFinalise();
     }
   }
@@ -386,6 +385,7 @@
       el.className = 'grid row';
       el.dataset.id = s.id;
       el.innerHTML =
+        '<div class="c-cov"></div>' +
         '<div class="c-num"></div>' +
         '<div class="c-ttl"></div>' +
         '<div class="c-art"></div>' +
@@ -396,6 +396,7 @@
       frag.appendChild(el);
       rowEls.set(s.id, {
         el,
+        cov: el.querySelector('.c-cov'),
         num: el.querySelector('.c-num'),
         ttl: el.querySelector('.c-ttl'),
         art: el.querySelector('.c-art'),
@@ -416,9 +417,28 @@
     }
   }
 
+  /* 行首封面：有内嵌图用真图，没有就按歌名生成渐变 */
+  function paintCover(el, s) {
+    if (!el) return;
+    const src = s.pic ? picSrc(s.pic) : '';
+    if (el.dataset.src === src) return;   // 同一张图不重复插，避免标签刷新时闪
+    el.dataset.src = src;
+    el.replaceChildren();
+    el.style.background = gradient(s.id);
+    if (!src) return;
+
+    const img = new Image();
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('error', () => img.remove());
+    img.src = src;
+    el.appendChild(img);
+  }
+
   function paintRow(s) {
     const r = rowEls.get(s.id);
     if (!r) return;
+    paintCover(r.cov, s);
     r.ttl.textContent = s.title || pretty(s.id);
     r.art.textContent = s.artist || '未知歌手';
     r.alb.textContent = s.album || '';
@@ -451,7 +471,6 @@
     curSong = songOf(S.curMusic);
     updateNow();
     syncRowState();
-    renderQueue();
     renderLyric();
     if (curSong && !S.tags.has(curSong.id)) fetchLyric(curSong.id);
   }
@@ -808,16 +827,6 @@
     updateLyricTime(ln.t);
   }
 
-  function setPane(pane) {
-    $$('#paneSeg button').forEach((o) => o.classList.toggle('on', o.dataset.pane === pane));
-    const isQ = pane === 'queue';
-    $('#queue').hidden = !isQ;
-    $('#lyric').hidden = isQ;
-    $('#qCount').hidden = !isQ;
-    if (isQ) renderQueue();      // 切回来时按当前可视高度重新铺满
-    else renderLyric(true);
-  }
-
   /* ------------------------------------------------------------- 全屏播放页 */
   function openStage() {
     const st = $('#stage');
@@ -866,13 +875,6 @@
     setTimeout(() => { s.hidden = true; }, 280);
   }
 
-  // 队列按可视高度铺满，避免底部留一大块空白（46 是单行高度）
-  function queueCap() {
-    const box = $('#queue');
-    const h = box && box.clientHeight ? box.clientHeight : 420;
-    return Math.max(4, Math.floor(h / 46));
-  }
-
   function qRowHTML(s, idx) {
     const src = picSrc(s.pic);
     const thumb = src
@@ -884,15 +886,6 @@
       '<div class="q-mid"><span class="q-t">' + esc(s.title) + '</span>' +
       '<span class="q-a">' + esc(s.artist || '未知歌手') + '</span></div>' +
       '<span class="q-d">' + esc(s.duration || '') + '</span></div>';
-  }
-
-  function renderQueue() {
-    const list = S.view.length ? S.view : S.songs;
-    const i = list.findIndex((s) => s.id === S.curMusic);
-    const n = queueCap();
-    const rest = i >= 0 ? list.slice(i + 1, i + 1 + n) : list.slice(0, n);
-    $('#qCount').textContent = rest.length ? rest.length + ' 首待播' : '';
-    $('#queue').innerHTML = rest.map((s, k) => qRowHTML(s, k + 2)).join('');
   }
 
   /* 播放页里的队列：一次多渲染些，靠滚动看 */
@@ -1258,18 +1251,13 @@
     $('#btnTheme').addEventListener('click', cycleTheme);
     // 系统主题变化时，只有"跟随系统"才需要重算
     mqDark.addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
-    // 窗口尺寸变了：队列行数、歌词居中都要按新高度重算
+    // 窗口尺寸变了：歌词要按新高度重新居中
     let rzTimer = null;
     window.addEventListener('resize', () => {
       clearTimeout(rzTimer);
       rzTimer = setTimeout(() => {
-        const q = $('#queue');
-        if (q && !q.hidden) {
-          renderQueue();
-        } else {
-          S.lyricIdx = -2;
-          updateLyricTime(S.pos);
-        }
+        S.lyricIdx = -2;
+        updateLyricTime(S.pos);
       }, 180);
     });
     $('#rows').addEventListener('scroll', closePops, { passive: true });
@@ -1346,25 +1334,14 @@
       playSong(id);
     });
 
-    $('#queue').addEventListener('click', (e) => {
-      const r = e.target.closest('[data-play]');
-      if (r) playSong(r.getAttribute('data-play'));
-    });
-
-    // 队列 / 歌词 切换
-    $('#paneSeg').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-pane]');
-      if (b) setPane(b.dataset.pane);
-    });
-    $('#lyric').addEventListener('click', seekToLyric);
     $('#sheetBody').addEventListener('click', seekToLyric);
 
-    // 底栏 / 右栏 → 打开全屏播放页
+    // 底栏 → 打开全屏播放页
     $('#mini').addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
       openStage();
     });
-    ['#barOpen', '#barStage', '#panelStage'].forEach((sel) => {
+    ['#barOpen', '#barStage'].forEach((sel) => {
       const el = $(sel);
       if (el) el.addEventListener('click', openStage);
     });
