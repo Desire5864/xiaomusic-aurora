@@ -273,14 +273,12 @@
       { k: 'httpauth_username', label: '面板账号' },
       { k: 'httpauth_password', label: '面板密码', type: 'password', hint: '显示 ****** 表示已保存，留空不改' },
     ], extra:
-      '<div class="field wide"><label>刮削封面 / 歌词</label>' +
+      '<div class="field wide"><label>维护</label>' +
       '<div class="set-acts">' +
-      '<button type="button" class="mini-btn" data-act="scrape" id="btnScrape">开始刮削</button>' +
       '<button type="button" class="mini-btn" data-act="refreshTag">刷新标签缓存</button>' +
       '<button type="button" class="mini-btn" data-act="clearCache">清空本地缓存</button>' +
-      '</div>' +
-      '<div class="scrape-log" id="scrapeLog">给新加的歌补内嵌封面和歌词；已有封面且已有歌词的文件会直接跳过，不联网。</div>' +
-      '</div>' },
+      '</div><div class="hint">刮削或换过音乐文件后点「刷新标签缓存」，面板才会读到新的封面和歌词。' +
+      '刮削本身用宿主上的 <b>./scrape.sh</b>，可以挂到群晖「任务计划」里定时跑。</div></div>' },
     { name: '关于', fields: [], extra:
       '<div class="set-note"><b>XiaoMusic</b> {{ver}}<br>' +
       '主题 aurora：零依赖三个文件，明暗两套配色，播放页背景从封面取色。<br>' +
@@ -406,77 +404,7 @@
     }
   }
 
-  /* 刮削服务跑在 xiaomusic 容器里，单独映射一个端口；只接受「跑固定脚本」这一个动作 */
-  const SCRAPE_API = location.protocol + '//' + location.hostname + ':58091';
-
-  function scrapeSay(text) {
-    const box = $('#scrapeLog');
-    if (box) box.textContent = text;
-  }
-
-  async function pollScrape() {
-    for (let i = 0; i < 900; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      let d;
-      try {
-        const r = await fetch(SCRAPE_API + '/status', { cache: 'no-store' });
-        d = await r.json();
-      } catch (e) { continue; }
-
-      const lines = d.lines || [];
-      const tail = lines.slice(-5).join('\n');
-      if (d.running) {
-        scrapeSay(tail || '扫描中…');
-        continue;
-      }
-      scrapeSay('完成（退出码 ' + d.exit + '）\n' + (tail || '没有输出'));
-      const btn = $('#btnScrape');
-      if (btn) btn.disabled = false;
-      if (d.exit === 0) {
-        toast('刮削完成');
-        try {
-          await api('/refreshmusictag', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}',
-          });
-        } catch (e) { /* 触发服务那边也会刷一次，失败不影响 */ }
-        await loadLists();
-        await selectList(S.cur);
-      } else {
-        toast('刮削失败，看下面日志');
-      }
-      return;
-    }
-    scrapeSay('等太久了，去容器里看看：docker logs xiaomusic');
-    const btn = $('#btnScrape');
-    if (btn) btn.disabled = false;
-  }
-
-  async function startScrape() {
-    const btn = $('#btnScrape');
-    scrapeSay('正在启动…');
-    try {
-      const r = await fetch(SCRAPE_API + '/scrape', { method: 'POST' });
-      if (r.status === 409) {
-        toast('已经在跑了');
-      } else if (!r.ok) {
-        throw new Error('HTTP ' + r.status);
-      }
-    } catch (e) {
-      scrapeSay('触发失败：' + String((e && e.message) || e) +
-        '\n刮削服务在容器的 8099 端口，需要 compose 里映射 58091:8099，' +
-        '并且浏览器能访问 NAS 的 58091。');
-      toast('触发失败');
-      return;
-    }
-    if (btn) btn.disabled = true;
-    toast('开始刮削');
-    pollScrape();
-  }
-
   async function setAction(act) {
-    if (act === 'scrape') return startScrape();
     if (act === 'autoHost') {
       setDraft.hostname = location.protocol + '//' + location.hostname;
       renderSettings();

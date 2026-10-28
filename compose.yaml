@@ -1,14 +1,13 @@
 services:
   xiaomusic:
-    # 自建镜像：官方镜像 + aurora 主题 + 刮削脚本 + 面板里的刮削触发服务（见 build/Dockerfile）
+    # 自建镜像：官方镜像 + aurora 主题 + 刮削脚本（见 build/Dockerfile）
     # 升级官方镜像时：改 build/Dockerfile 的 FROM → 重新 build → 改这里的 tag
-    image: zhangsan51455/xiaomusic-aurora:1.4
+    image: zhangsan51455/xiaomusic-aurora:1.5
     container_name: xiaomusic
     restart: unless-stopped
     network_mode: bridge
     ports:
       - "58090:8090"   # 面板
-      - "58091:8099"   # 只给面板里的「开始刮削」按钮用，没有它就点不动
     environment:
       XIAOMUSIC_PUBLIC_PORT: 58090
     volumes:
