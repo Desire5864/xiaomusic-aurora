@@ -1257,6 +1257,17 @@ select.inp { padding-right: 8px; cursor: pointer; }
 .dev-check input { accent-color: var(--acc); }
 
 .set-acts { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
+.mini-btn:disabled { opacity: .55; cursor: default; }
+/* 刮削日志：等宽字体，最多 8 行，超出滚动 */
+.scrape-log {
+  margin-top: 10px;
+  max-height: 136px; overflow-y: auto;
+  background: var(--hover); border-radius: 9px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px; line-height: 1.75;
+  color: var(--ink-2); white-space: pre-wrap; word-break: break-all;
+}
 .set-note {
   font-size: 12px; color: var(--ink-3); line-height: 1.9;
   background: var(--hover); border-radius: 10px;
