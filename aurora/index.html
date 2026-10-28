@@ -56,9 +56,9 @@
           <svg class="ic"><use href="#i-auto"/></svg>
           <span class="rail-label" id="themeLabel">跟随系统</span>
         </button>
-        <a class="rail-item" href="/static/tailwind/setting.html" target="_blank">
+        <button class="rail-item js-set" id="btnSetting">
           <svg class="ic"><use href="#i-settings"/></svg><span>设置</span>
-        </a>
+        </button>
         <a class="rail-item" href="/static/tailwind/downloadtool.html" target="_blank">
           <svg class="ic"><use href="#i-download"/></svg><span>下载</span>
         </a>
@@ -103,9 +103,9 @@
           <button class="tool" id="btnNewList" title="新建歌单">
             <svg class="ic"><use href="#i-add"/></svg>
           </button>
-          <a class="tool" href="/static/tailwind/setting.html" target="_blank" title="设置">
+          <button class="tool js-set" id="btnSetting2" title="设置">
             <svg class="ic"><use href="#i-settings"/></svg>
-          </a>
+          </button>
         </div>
       </div>
 
@@ -251,6 +251,27 @@
             <button class="sbtn" id="stCollapse" title="收起"><svg class="ic"><use href="#i-chev"/></svg></button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置面板 -->
+  <div class="set" id="set" hidden>
+    <div class="set-bg" aria-hidden="true"></div>
+    <div class="set-in">
+      <header class="set-top">
+        <button class="set-back" id="setBack" aria-label="返回">
+          <svg class="ic"><use href="#i-chev"/></svg>
+        </button>
+        <div class="set-h">
+          <div class="set-h1">设置</div>
+          <div class="set-h2" id="setVer">—</div>
+        </div>
+        <button class="set-save" id="setSave">保存</button>
+      </header>
+      <div class="set-body">
+        <nav class="set-nav" id="setNav"></nav>
+        <div class="set-form" id="setForm"></div>
       </div>
     </div>
   </div>

@@ -23,6 +23,7 @@
 - **明暗两套主题**：默认跟随系统 `prefers-color-scheme`，也可以点左栏底部按钮在「跟随系统 → 浅色 → 深色」之间切换，选择记在 localStorage
 - **磨砂玻璃**：侧栏、列表、底栏都是半透明 + `backdrop-filter`，后面的底色是当前封面糊成的一片 + 几团彩色光斑，换歌会跟着变色
 - 两栏：左侧设备/歌单，右侧歌曲表格 —— **行首带专辑封面缩略图**，可按标题/歌手/专辑/时长排序
+- **内置设置面板**：账号 / 服务器 / 音乐库 / 口令 / 提示音 / 歌单 / 高级 / 安全 / 关于 全部在主题内，不再跳到原版 setting.html；保存走 `/savesetting`（合并式更新），也能一键刷新标签缓存
 - 底部常驻播放条：进度可拖、封面歌名、模式/上一首/播放/下一首/收藏、时间、音量
 - **独立全屏播放页**：深色沉浸式，背景色从封面主色提取（按色相分桶取前两色），大封面 + 左对齐大字歌词，当前行高亮跟随，点歌词可跳转，队列页签可切歌
 - 手机端自动塌成单列：底部播放条 + 全屏播放页，主题同样跟随系统
@@ -40,7 +41,7 @@
 ```yaml
 services:
   xiaomusic:
-    image: zhangsan51455/xiaomusic-aurora:1.2
+    image: zhangsan51455/xiaomusic-aurora:1.3
     container_name: xiaomusic
     restart: unless-stopped
     ports:
@@ -61,7 +62,7 @@ services:
 ```bash
 git clone https://github.com/Desire5864/xiaomusic-aurora.git
 cd xiaomusic-aurora
-docker build -t xiaomusic-aurora:1.2 .
+docker build -t xiaomusic-aurora:1.3 .
 ```
 
 想跟官方新版走，改 `Dockerfile` 第一行的 `FROM`，或者直接 `docker build --build-arg` 前先 `docker pull hanxi/xiaomusic:latest`。

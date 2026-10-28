@@ -39,6 +39,7 @@
     isPlaying: false,
     mode: Number(localStorage.getItem('xm_mode') || 1),
     theme: localStorage.getItem('xm_theme') || 'auto',
+    ver: '',
     vol: 50,
     token: 0,
     loading: false,
@@ -125,6 +126,7 @@
     if (!Array.isArray(S.lists[S.cur])) S.cur = '所有歌曲';
     renderRail();
     await selectList(S.cur);
+    api('/getversion').then((v) => { S.ver = (v && v.version) || ''; }).catch(() => {});
     setMode(S.mode, false);
     syncPlayBtns();
     updateNow();
@@ -208,6 +210,228 @@
     localStorage.setItem('xm_theme', S.theme);
     applyTheme();
     toast('主题：' + THEME_LABEL[S.theme]);
+  }
+
+  /* ------------------------------------------------------------- 设置面板 */
+  const SET_SCHEMA = [
+    { name: '账号', fields: [
+      { k: 'account', label: '小米账号', hint: '登录后才控制得了小爱音箱' },
+      { k: 'password', label: '小米密码', type: 'password', hint: '显示 ****** 表示已保存，留空不改' },
+      { k: 'mi_did', label: '小爱设备', type: 'devices', wide: true, hint: '勾选哪几台，面板就控制哪几台' },
+    ] },
+    { name: '服务器', fields: [
+      { k: 'hostname', label: 'NAS 地址', act: 'autoHost', actText: '自动填',
+        hint: '音箱拉歌用的地址，不要带端口号' },
+      { k: 'public_port', label: '歌曲访问端口', type: 'number', act: 'autoPort', actText: '自动填',
+        hint: '就是你打开这个页面的端口' },
+      { k: 'proxy', label: '代理', wide: true, hint: 'ytsearch 下载需要；留空表示不用' },
+    ] },
+    { name: '音乐库', fields: [
+      { k: 'music_path', label: '音乐目录' },
+      { k: 'download_path', label: '下载目录', hint: '必须是 music 的子目录' },
+      { k: 'temp_path', label: '临时目录' },
+      { k: 'exclude_dirs', label: '忽略目录', hint: '逗号分隔' },
+      { k: 'music_path_depth', label: '目录深度', type: 'number' },
+      { k: 'ffmpeg_location', label: 'ffmpeg 路径' },
+    ] },
+    { name: '播放', fields: [
+      { k: 'keywords_playlocal', label: '播放本地歌曲口令' },
+      { k: 'keywords_play', label: '播放歌曲口令' },
+      { k: 'keywords_stop', label: '停止口令' },
+      { k: 'delay_sec', label: '下一首延迟（秒）', type: 'number' },
+      { k: 'keywords_online_play', label: '在线播放口令' },
+      { k: 'keywords_singer_play', label: '播放歌手指令' },
+    ] },
+    { name: '提示音', fields: [
+      { k: 'stop_tts_msg', label: '停止提示音' },
+      { k: 'play_type_one_tts_msg', label: '单曲循环提示音' },
+      { k: 'play_type_all_tts_msg', label: '全部循环提示音' },
+      { k: 'play_type_rnd_tts_msg', label: '随机播放提示音' },
+      { k: 'play_type_sin_tts_msg', label: '单曲播放提示音' },
+      { k: 'play_type_seq_tts_msg', label: '顺序播放提示音' },
+    ] },
+    { name: '歌单', fields: [
+      { k: 'music_list_url', label: '在线歌单地址', wide: true, act: 'pullList', actText: '拉取' },
+      { k: 'music_list_json', label: '歌单内容', type: 'textarea', wide: true,
+        hint: 'JSON 格式，可以从上面的地址拉取' },
+    ] },
+    { name: '高级', fields: [
+      { k: 'crontab_json', label: '定时任务', type: 'textarea', wide: true, hint: 'JSON 格式，留空不启用' },
+      { k: 'verbose', label: '调试日志', type: 'sel', opts: [['true', '开启'], ['false', '关闭']] },
+      { k: 'disable_download', label: '下载功能', type: 'sel', opts: [['false', '开启'], ['true', '关闭']] },
+      { k: 'enable_fuzzy_match', label: '模糊搜索', type: 'sel', opts: [['true', '开启'], ['false', '关闭']] },
+      { k: 'fuzzy_match_cutoff', label: '模糊匹配阈值', type: 'number', step: '0.05', hint: '0.1 ~ 0.9，越大越严格' },
+      { k: 'enable_multi_result_selection', label: '多结果选择', type: 'sel', opts: [['true', '开启'], ['false', '关闭']] },
+      { k: 'multi_result_action', label: '多结果处理', type: 'sel', opts: [['random', '随机播放'], ['first', '从第一首开始']] },
+      { k: 'search_prefix', label: '下载方式', type: 'sel', opts: [['bilisearch:', 'B 站搜索'], ['ytsearch:', 'YouTube 搜索']] },
+      { k: 'enable_save_tag', label: '写入 ID3 标签', type: 'sel', opts: [['true', '开启'], ['false', '关闭']] },
+      { k: 'get_ask_by_mina', label: '特殊型号获取对话记录', type: 'sel', opts: [['true', '开启'], ['false', '关闭']] },
+    ] },
+    { name: '安全', fields: [
+      { k: 'disable_httpauth', label: '控制台密码验证', type: 'sel', opts: [['false', '开启'], ['true', '关闭']],
+        hint: '开启后打开面板要输账号密码' },
+      { k: 'httpauth_username', label: '面板账号' },
+      { k: 'httpauth_password', label: '面板密码', type: 'password', hint: '显示 ****** 表示已保存，留空不改' },
+    ], extra:
+      '<div class="field wide"><label>维护</label>' +
+      '<div class="set-acts">' +
+      '<button type="button" class="mini-btn" data-act="refreshTag">刷新标签缓存</button>' +
+      '<button type="button" class="mini-btn" data-act="clearCache">清空本地缓存</button>' +
+      '</div><div class="hint">刮削或换过音乐文件后点「刷新标签缓存」，面板才会读到新的封面和歌词。</div></div>' },
+    { name: '关于', fields: [], extra:
+      '<div class="set-note"><b>XiaoMusic</b> {{ver}}<br>' +
+      '主题 aurora：零依赖三个文件，明暗两套配色，播放页背景从封面取色。<br>' +
+      '配置保存在容器的 <b>/app/conf</b>，这里保存后会立即写回并重新初始化。</div>' +
+      '<div class="set-acts">' +
+      '<a class="mini-btn" href="/static/tailwind/setting.html" target="_blank">打开原版设置页</a>' +
+      '<a class="mini-btn" href="https://github.com/hanxi/xiaomusic" target="_blank">上游项目</a>' +
+      '</div>' +
+      '<div class="hint" style="margin-top:12px">改过端口或地址后，需要重启容器才完全生效。</div>' },
+  ];
+
+  let setDraft = null;
+  let setIdx = 0;
+
+  function setFieldHTML(f) {
+    const raw = setDraft[f.k];
+    const val = raw === undefined || raw === null ? '' : String(raw);
+    const wide = f.wide ? ' wide' : '';
+    const hint = f.hint ? '<div class="hint">' + esc(f.hint) + '</div>' : '';
+
+    if (f.type === 'devices') {
+      const list = Array.isArray(setDraft.device_list) ? setDraft.device_list : [];
+      const picked = String(setDraft.mi_did || '').split(',').map((x) => x.trim()).filter(Boolean);
+      const body = list.length
+        ? list.map((d) => '<label class="dev-check"><input type="checkbox" value="' +
+            esc(d.miotDID) + '"' + (picked.indexOf(d.miotDID) >= 0 ? ' checked' : '') + '>' +
+            '<span>' + esc((d.hardware ? '【' + d.hardware + '】' : '') + (d.name || d.miotDID)) +
+            '</span></label>').join('')
+        : '<div class="hint">没取到设备列表 —— 先填好账号密码保存，再打开一次这里。</div>';
+      return '<div class="field' + wide + '"><label>' + esc(f.label) + '</label>' +
+        '<div class="devs" id="setDevs">' + body + '</div>' + hint + '</div>';
+    }
+
+    let ctrl;
+    if (f.type === 'textarea') {
+      ctrl = '<textarea class="inp" data-key="' + f.k + '" spellcheck="false">' + esc(val) + '</textarea>';
+    } else if (f.type === 'sel') {
+      ctrl = '<select class="inp" data-key="' + f.k + '">' + f.opts.map((o) =>
+        '<option value="' + esc(o[0]) + '"' + (val === o[0] ? ' selected' : '') + '>' +
+        esc(o[1]) + '</option>').join('') + '</select>';
+    } else {
+      ctrl = '<input class="inp" data-key="' + f.k + '" type="' + (f.type || 'text') + '"' +
+        (f.step ? ' step="' + f.step + '"' : '') + ' value="' + esc(val) + '">';
+    }
+    if (f.act) {
+      ctrl = '<div class="inp-row">' + ctrl +
+        '<button type="button" class="mini-btn" data-act="' + f.act + '">' +
+        esc(f.actText || '执行') + '</button></div>';
+    }
+    return '<div class="field' + wide + '"><label>' + esc(f.label) + '</label>' +
+      ctrl + hint + '</div>';
+  }
+
+  function renderSettings() {
+    const nav = $('#setNav');
+    const form = $('#setForm');
+    if (!nav || !form) return;
+    nav.innerHTML = SET_SCHEMA.map((s, i) =>
+      '<button type="button" data-sec="' + i + '" class="' + (i === setIdx ? 'on' : '') + '">' +
+      esc(s.name) + '</button>').join('');
+    const sec = SET_SCHEMA[setIdx];
+    const body = sec.fields.length
+      ? '<div class="grid2">' + sec.fields.map(setFieldHTML).join('') + '</div>'
+      : '';
+    const extra = (sec.extra || '').replace(/\{\{ver\}\}/g, esc(S.ver || ''));
+    form.innerHTML = '<div class="set-sec"><h3>' + esc(sec.name) + '</h3>' + body + extra + '</div>';
+    form.scrollTop = 0;
+  }
+
+  async function openSettings() {
+    const box = $('#set');
+    if (!box || box.classList.contains('open')) return;
+    setIdx = 0;
+    box.hidden = false;
+    try {
+      setDraft = (await api('/getsetting?need_device_list=true')) || {};
+    } catch (e) {
+      setDraft = {};
+      toast('读取配置失败');
+    }
+    $('#setVer').textContent = S.ver ? 'XiaoMusic ' + S.ver : 'XiaoMusic';
+    renderSettings();
+    requestAnimationFrame(() => box.classList.add('open'));
+  }
+
+  function closeSettings() {
+    const box = $('#set');
+    if (!box || box.hidden) return;
+    box.classList.remove('open');
+    setTimeout(() => { box.hidden = true; }, 220);
+  }
+
+  async function saveSettings() {
+    if (!setDraft) return;
+    const btn = $('#setSave');
+    const data = {};
+    SET_SCHEMA.forEach((s) => s.fields.forEach((f) => {
+      if (f.type === 'devices') return;
+      if (setDraft[f.k] !== undefined) data[f.k] = setDraft[f.k];
+    }));
+    data.mi_did = String(setDraft.mi_did || '');
+
+    const old = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '保存中…';
+    try {
+      await api('/savesetting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      toast('已保存');
+      closeSettings();
+      await loadDevices();
+      await loadLists();
+      await selectList(S.cur);
+      refreshVolume();
+    } catch (e) {
+      toast('保存失败：' + String((e && e.message) || e).slice(0, 40));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old || '保存';
+    }
+  }
+
+  async function setAction(act) {
+    if (act === 'autoHost') {
+      setDraft.hostname = location.protocol + '//' + location.hostname;
+      renderSettings();
+    } else if (act === 'autoPort') {
+      setDraft.public_port = location.port || (location.protocol === 'https:' ? '443' : '80');
+      renderSettings();
+    } else if (act === 'pullList') {
+      const url = String(setDraft.music_list_url || '').trim();
+      if (!url) return toast('先填歌单地址');
+      try {
+        const r = await post('/downloadjson', { url });
+        if (r && r.ret === 'OK') {
+          setDraft.music_list_json = r.content || '';
+          renderSettings();
+          toast('已拉取，记得点保存');
+        } else {
+          toast('拉取失败：' + ((r && r.ret) || '未知错误'));
+        }
+      } catch (e) { toast('拉取失败'); }
+    } else if (act === 'refreshTag') {
+      try {
+        await post('/refreshmusictag', {});
+        toast('标签缓存已刷新');
+      } catch (e) { toast('刷新失败'); }
+    } else if (act === 'clearCache') {
+      localStorage.clear();
+      toast('本地缓存已清空');
+    }
   }
 
   function syncDeviceLabel() {
@@ -1249,6 +1473,35 @@
     });
     window.addEventListener('resize', closePops);
     $('#btnTheme').addEventListener('click', cycleTheme);
+
+    // 设置
+    $$('.js-set').forEach((el) => el.addEventListener('click', openSettings));
+    $('#setBack').addEventListener('click', closeSettings);
+    $('#setSave').addEventListener('click', saveSettings);
+    $('#setNav').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-sec]');
+      if (!b) return;
+      setIdx = Number(b.dataset.sec) || 0;
+      renderSettings();
+    });
+    const onSetEdit = (e) => {
+      if (!setDraft) return;
+      const cb = e.target.closest('#setDevs input[type=checkbox]');
+      if (cb) {
+        const on = [];
+        $$('#setDevs input:checked').forEach((x) => on.push(x.value));
+        setDraft.mi_did = on.join(',');
+        return;
+      }
+      const el = e.target.closest('[data-key]');
+      if (el) setDraft[el.dataset.key] = el.value;
+    };
+    $('#setForm').addEventListener('input', onSetEdit);
+    $('#setForm').addEventListener('change', onSetEdit);
+    $('#setForm').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (b) setAction(b.dataset.act);
+    });
     // 系统主题变化时，只有"跟随系统"才需要重算
     mqDark.addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
     // 窗口尺寸变了：歌词要按新高度重新居中
@@ -1466,7 +1719,7 @@
           $('#dlgOk').click();
         }
       }
-      if (e.key === 'Escape') { closePops(); closeSheet(); closeStage(); }
+      if (e.key === 'Escape') { closePops(); closeSheet(); closeStage(); closeSettings(); }
     });
 
     // 对话框内选择
