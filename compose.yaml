@@ -1,7 +1,7 @@
 services:
   xiaomusic:
     # 官方镜像 + aurora 主题 + 刮削脚本，见 Dockerfile
-    image: zhangsan51455/xiaomusic-aurora:1.0
+    image: zhangsan51455/xiaomusic-aurora:1.1
     container_name: xiaomusic
     restart: unless-stopped
     ports:
