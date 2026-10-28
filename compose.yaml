@@ -1,0 +1,13 @@
+services:
+  xiaomusic:
+    # 官方镜像 + aurora 主题 + 刮削脚本，见 Dockerfile
+    image: zhangsan51455/xiaomusic-aurora:1.0
+    container_name: xiaomusic
+    restart: unless-stopped
+    ports:
+      - "58090:8090"
+    environment:
+      XIAOMUSIC_PUBLIC_PORT: 58090
+    volumes:
+      - /path/to/music:/app/music
+      - /path/to/config:/app/conf

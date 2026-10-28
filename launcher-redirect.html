@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#16181d">
+  <title>XiaoMusic</title>
+  <!--
+    把访问根路径 / 直接送到 aurora 主题。
+    用法（挂载到官方镜像的启动页位置）：
+      -v /volume1/docker/xiaomusic/launcher-redirect.html:/app/xiaomusic/static/index.html:ro
+    删掉这条挂载 + docker compose up -d 就恢复原版的多主题选择页。
+  -->
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid; place-items: center;
+      background: #16181d; color: #a8adb8;
+      font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    a { color: #4c6fff; }
+  </style>
+</head>
+
+<body>
+  <div>正在进入 <a id="go" href="/static/aurora/index.html">XiaoMusic</a>…</div>
+
+  <script>
+    (function () {
+      var target = '/static/aurora/index.html';
+
+      // 旧版首页注册过 /static/sw.js（scope=/static/）。它虽然没有 fetch 拦截，
+      // 但装过 PWA 的客户端会留着旧壳，这里一并清掉，避免"怎么刷都是老页面"。
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (rs) {
+            rs.forEach(function (r) { r.unregister(); });
+          }).catch(function () {});
+        }
+      } catch (e) {}
+
+      try {
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (ks) {
+            ks.forEach(function (k) {
+              if (k.indexOf('xiaomusic') === 0) caches.delete(k);
+            });
+          }).catch(function () {});
+        }
+      } catch (e) {}
+
+      // 用 replace 而不是 meta refresh：不写进历史记录，按返回不会又跳回来
+      setTimeout(function () { location.replace(target); }, 60);
+    })();
+  </script>
+</body>
+
+</html>
