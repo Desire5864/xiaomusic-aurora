@@ -38,6 +38,7 @@
     remoteList: '',
     isPlaying: false,
     mode: Number(localStorage.getItem('xm_mode') || 1),
+    theme: localStorage.getItem('xm_theme') || 'auto',
     vol: 50,
     token: 0,
     loading: false,
@@ -117,6 +118,7 @@
 
   /* ------------------------------------------------------------- 启动 */
   async function boot() {
+    applyTheme();
     bind();
     await loadDevices();
     await loadLists();
@@ -177,6 +179,36 @@
   }
 
   const countOf = (n) => (Array.isArray(S.lists[n]) ? S.lists[n].length : 0);
+
+  /* ------------------------------------------------------------- 主题 */
+  const THEMES = ['auto', 'light', 'dark'];
+  const THEME_LABEL = { auto: '跟随系统', light: '浅色', dark: '深色' };
+  const THEME_ICON = { auto: 'i-auto', light: 'i-sun', dark: 'i-moon' };
+  const mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function isDarkNow() {
+    return S.theme === 'dark' || (S.theme === 'auto' && mqDark.matches);
+  }
+
+  function applyTheme() {
+    const dark = isDarkNow();
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    const btn = $('#btnTheme');
+    if (btn) {
+      btn.title = '主题：' + THEME_LABEL[S.theme] + '（点击切换）';
+      const use = btn.querySelector('use');
+      if (use) use.setAttribute('href', '#' + THEME_ICON[S.theme]);
+    }
+    const lb = $('#themeLabel');
+    if (lb) lb.textContent = THEME_LABEL[S.theme];
+  }
+
+  function cycleTheme() {
+    S.theme = THEMES[(THEMES.indexOf(S.theme) + 1) % THEMES.length];
+    localStorage.setItem('xm_theme', S.theme);
+    applyTheme();
+    toast('主题：' + THEME_LABEL[S.theme]);
+  }
 
   function syncDeviceLabel() {
     const d = S.devices.find((x) => x.id === S.did);
@@ -515,12 +547,11 @@
   }
 
   function applyCoverTint(img) {
-    const st = $('#stage');
-    if (!st) return;
     const cols = coverColor(img);
     if (!cols) return;
-    st.style.setProperty('--cov', cols[0].join(', '));
-    st.style.setProperty('--cov2', cols[1].join(', '));
+    const root = document.documentElement;
+    root.style.setProperty('--cov', cols[0].join(', '));
+    root.style.setProperty('--cov2', cols[1].join(', '));
   }
 
   function updateNow() {
@@ -542,6 +573,12 @@
     $('#stageTitle').textContent = title;
     $('#stageMeta').textContent = meta;
 
+    // 背景大图 = 当前封面（CSS 里模糊后用）
+    const root = document.documentElement;
+    const cs = curSong ? picSrc(curSong.pic) : '';
+    if (cs) root.style.setProperty('--cover-img', 'url("' + cs.replace(/["'\\]/g, '') + '")');
+    else root.style.removeProperty('--cover-img');
+
     const sh = $('#sheet');
     if (sh && !sh.hidden) {
       $('#sheetTitle').textContent = title;
@@ -555,8 +592,8 @@
     const bg = $('#stageBg');
     if (!curSong || !picSrc(curSong.pic)) {
       // 没有封面时把主色复位，否则会沿用上一首的颜色
-      const st = $('#stage');
-      if (st) { st.style.removeProperty('--cov'); st.style.removeProperty('--cov2'); }
+      document.documentElement.style.removeProperty('--cov');
+      document.documentElement.style.removeProperty('--cov2');
     }
     if (bg) {
       const src = curSong ? picSrc(curSong.pic) : '';
@@ -1218,6 +1255,9 @@
       if (!e.target.closest('.pop') && !e.target.closest('[data-keep-pop]')) closePops();
     });
     window.addEventListener('resize', closePops);
+    $('#btnTheme').addEventListener('click', cycleTheme);
+    // 系统主题变化时，只有"跟随系统"才需要重算
+    mqDark.addEventListener('change', () => { if (S.theme === 'auto') applyTheme(); });
     // 窗口尺寸变了：队列行数、歌词居中都要按新高度重算
     let rzTimer = null;
     window.addEventListener('resize', () => {
